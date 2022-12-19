@@ -3,6 +3,7 @@
 # @Author  : White Jiang
 import torch
 import torch.nn as nn
+from model.attention.conv_form import ConvMod
 
 
 def conv3x3(in_planes, out_planes, stride=1, groups=1, dilation=1):
@@ -161,6 +162,7 @@ class ResNet_Backbone(nn.Module):
         layers.append(block(self.inplanes, planes, stride, downsample, self.groups,
                             self.base_width, previous_dilation, norm_layer))
         self.inplanes = planes * block.expansion
+
         for _ in range(1, blocks):
             layers.append(block(self.inplanes, planes, groups=self.groups,
                                 base_width=self.base_width, dilation=self.dilation,
@@ -237,6 +239,7 @@ class Refine(nn.Module):
         layers.append(block(self.inplanes, planes, stride, downsample, self.groups,
                             self.base_width, previous_dilation, norm_layer))
         self.inplanes = planes * block.expansion
+        # layers.append(ConvMod())
         for _ in range(1, blocks):
             layers.append(block(self.inplanes, planes, groups=self.groups,
                                 base_width=self.base_width, dilation=self.dilation,
@@ -258,7 +261,7 @@ def refine(is_local=True, pretrained=True, progress=True, **kwargs):
     # model = Refine(Bottleneck, 3, is_local, **kwargs)
     model = Refine(BasicBlock, 2, is_local, **kwargs)
     if pretrained:
-        state_dict = torch.load('/home/jx/code/SiamNet/resnet18.pth')
+        state_dict = torch.load('/home/jx/code/pretrain_backbone/resnet18.pth')
         for name in list(state_dict.keys()):
             if not 'layer4' in name:
                 state_dict.pop(name)
@@ -271,7 +274,7 @@ def Backbone(pretrained=True, progress=True, **kwargs):
     model = ResNet_Backbone(BasicBlock, [2, 2, 2], **kwargs)
     if pretrained:
         # state_dict = torch.load('/home/jx/code/SiamNet/cub_ft.t')['model_state_dict']
-        state_dict = torch.load('/home/jx/code/SiamNet/resnet18.pth')
+        state_dict = torch.load('/home/jx/code/pretrain_backbone/resnet18.pth')
         # print(state_dict.keys())
         for name in list(state_dict.keys()):
             if 'fc' in name or 'layer4' in name:
@@ -283,8 +286,8 @@ def Backbone(pretrained=True, progress=True, **kwargs):
 class ResNet(nn.Module):
     def __init__(self, class_num=200, pretrained=True, dim=512):
         super(ResNet, self).__init__()
-        self.backbone = Backbone(pretrained=pretrained)
-        self.refine = refine(pretrained=pretrained)
+        self.backbone = Backbone(pretrained=False)
+        self.refine = refine(pretrained=False)
         self.cls = nn.Linear(dim, class_num)
 
     def forward(self, x):
@@ -292,4 +295,5 @@ class ResNet(nn.Module):
         out = self.refine(out)
         cls = self.cls(out)
 
-        return x
+        return cls
+

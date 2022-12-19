@@ -46,8 +46,9 @@ def main():
     loss_meter = AverageMeter()
     acc_meter = AverageMeter()
     best_acc = 0.0
+    best_model_wts = model.state_dict()
 
-    for epoch in range(cfg.MAX_EPOCHS):
+    for epoch in range(1, cfg.SOLVER.MAX_EPOCHS + 1):
         cur_lr = scheduler.get_lr()
         model.train()
         loss_meter.reset()
@@ -60,20 +61,25 @@ def main():
             optimizer.zero_grad()
             raw_logits = model(img)
             raw_loss = criterion(raw_logits, label)
-            # total_loss = raw_loss
-            # loss = loss + total_loss
             raw_loss.backward()
 
             optimizer.step()
             loss_meter.update(raw_loss.item(), img.shape[0])
             pred = raw_logits.max(1, keepdim=True)[1]
-            acc_meter.update(pred, img.shape[0])
-            logger.info(
-                '[epoch:{}/{}][loss:{:.6f}][acc:{:.6f}][lr:{}'.format(
-                    epoch + 1, cfg.MAX_EPOCHS,
-                    loss_meter.avg,
-                    acc_meter.avg,
-                    cur_lr))
+            pred = pred.eq(label.view_as(pred)).sum().item() / img.shape[0]
+            acc_meter.update(pred)
+            if (i + 1) % 20 == 0:
+                logger.info(
+                    '[epoch:{}/{}]Iteration[{}/{}][loss:{:.3f}][acc:{:.3f}][lr:{}'.format(
+                        epoch, cfg.SOLVER.MAX_EPOCHS, (i + 1), len(train_dataloader),
+                        loss_meter.avg,
+                        acc_meter.avg,
+                        cur_lr))
+        logger.info('[epoch:{}/{}][loss:{:.3f}][acc:{:.3f}][lr:{}'.format(
+                epoch, cfg.SOLVER.MAX_EPOCHS,
+                loss_meter.avg,
+                acc_meter.avg,
+                cur_lr))
         test_acc = 0.0
         model.eval()
         for n_iter, (index, img, label) in enumerate(test_dataloader):
@@ -83,11 +89,19 @@ def main():
                 raw_logits = model(img)
                 pred = raw_logits.max(1, keepdim=True)[1]
                 test_acc += pred.eq(label.view_as(pred)).sum().item()
+        logger.info('best_acc{:.3f}'.format(best_acc))
+        logger.info('test_acc{:.3f}'.format(test_acc / num_test))
         if test_acc / num_test > best_acc:
             best_acc = test_acc / num_test
-        # print('epoch:{},loss:{:.4f},prec:{:.4f}'.format(epoch, loss, prec / num_train))
-        # if epoch % 10 == 0:
-        #     model.snapshot(cfg.DATASETS.NAMES, epoch)
+            best_model_wts = model.state_dict()
+        if epoch % cfg.SOLVER.MAX_EPOCHS == 0:
+            # if torch.cuda.device_count() > 1:
+            #     torch.save(model.module.state_dict(),
+            #                os.path.join(output_dir, cfg.MODEL.NAME + '_{}.pth'.format(epoch)))
+            # else:
+            model.load_state_dict(best_model_wts)
+            torch.save(model.module.state_dict(),
+                       os.path.join(cfg.MODEL.CHECKPOINTS, cfg.MODEL.NAME + '_{}_best.pth'.format(best_acc)))
 
 
 if __name__ == '__main__':

@@ -15,13 +15,14 @@ _C.MODEL.DEVICE = "cuda"
 # ID number of GPU
 _C.MODEL.DEVICE_ID = '0, 1'
 # Name of backbone
-_C.MODEL.NAME = 'convnext_small'
+_C.MODEL.NAME = 'resnet_conv'
 _C.MODEL.INFO = 'pretrain_cub'
 
 # Last stride of backbone
 _C.MODEL.LAST_STRIDE = 1
 # Path to pretrained model of backbone
 _C.MODEL.PRETRAIN_PATH = '/home/jx/code/pretrain_backbone/resnet18.pth'
+_C.MODEL.CHECKPOINTS = '/home/jx/code/pretrain_backbone/checkponit/'
 # Use ImageNet pretrained model to initialize backbone or use self trained model to initialize the whole model
 
 # -----------------------------------------------------------------------------
